@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Write and preview Markdown with Mermaid, D2 and Graphviz diagrams and KaTeX math. 14 themes, one-click PDF export. Renders locally. No data collected or sent.">
+<meta name="keywords" content="markdown viewer, markdown editor, mermaid, d2, graphviz, katex, diagrams as code, live preview, pdf export, offline, chrome extension">
+<meta name="author" content="SRINIS">
+<link rel="canonical" href="https://deekshabandi.github.io/markdown-diagram-viewer/">
+<meta property="og:url" content="https://deekshabandi.github.io/markdown-diagram-viewer/">
+<meta name="robots" content="index, follow">
+<meta name="theme-color" content="#8b3dff">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Markdown & Diagram Viewer">
+<meta property="og:title" content="Markdown & Diagram Viewer — Write. Diagram. Ship.">
+<meta property="og:description" content="Live Markdown preview with Mermaid, D2, Graphviz and math. 14 themes, PDF export. Renders locally; no data collected.">
+<meta property="og:image" content="https://deekshabandi.github.io/markdown-diagram-viewer/icons/icon128.png">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Markdown & Diagram Viewer — Write. Diagram. Ship.">
+<meta name="twitter:description" content="Live Markdown preview with Mermaid, D2, Graphviz and math. 14 themes, PDF export. Renders locally; no data collected.">
+<meta name="twitter:image" content="https://deekshabandi.github.io/markdown-diagram-viewer/icons/icon128.png">
+<title>Markdown & Diagram Viewer</title>
+<link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/icon32.png">
+<link rel="stylesheet" href="lib/katex/katex.min.css">
+<script src="lib/purify.min.js"></script>
+<script src="lib/katex/katex.min.js"></script>
+<script src="lib/marked.min.js"></script>
+<script src="lib/editor.bundle.js"></script>
+<script src="lib/highlight.min.js"></script>
+<script src="lib/mermaid.min.js"></script>
+<style>
+  :root { --bg:#f5f7fb; --panel:rgba(255,255,255,.92); --panel-solid:#fff; --border:#e2e8f0; --text:#1e293b; --muted:#64748b; --accent:#6366f1; --accent2:#8b5cf6; --code:#f1f5f9; --shadow:0 10px 30px rgba(99,102,241,.12); }
+  body.dark { --bg:#0b1020; --panel:rgba(22,28,48,.94); --panel-solid:#141a2e; --border:#2a3352; --text:#e2e8f0; --muted:#94a3b8; --code:#1c2440; --shadow:0 10px 30px rgba(0,0,0,.5); }
+  * { box-sizing: border-box; }
+  body { font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif; margin:0; display:flex; height:100vh; width:100vw; overflow:hidden; color:var(--text);
+    background: radial-gradient(900px 500px at 0% 0%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 60%), radial-gradient(800px 500px at 100% 100%, color-mix(in srgb, var(--accent2) 16%, transparent), transparent 60%), var(--bg);
+    transition: background .3s, color .3s; padding:12px; gap:0; }
+
+  #sidebar { width:40%; min-width:220px; display:flex; flex-direction:column; background:var(--panel); border:1px solid var(--border); border-radius:16px; box-shadow:var(--shadow); overflow:hidden; flex-shrink:0; }
+  #sidebar.collapsed { display:none; }
+  .sidebar-header { padding:12px 14px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:flex-start; gap:8px; flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; }
+  .file-label { display:inline-flex; align-items:center; gap:6px; padding:7px 14px; color:#fff; background:linear-gradient(135deg,var(--accent),var(--accent2)); border-radius:999px; font-size:13px; font-weight:600; cursor:pointer; box-shadow:0 4px 12px rgba(99,102,241,.4); transition:transform .15s, box-shadow .15s; white-space:nowrap; }
+  .file-label:hover { transform:translateY(-1px); box-shadow:0 6px 16px rgba(99,102,241,.5); }
+  input[type="file"] { display:none; }
+  .icon-btn { display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; flex-shrink:0; padding:0; color:var(--text); background:var(--panel-solid); border:1px solid var(--border); border-radius:50%; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,.06); transition:transform .15s, border-color .15s, color .15s, box-shadow .15s; }
+  .icon-btn:hover { border-color:var(--accent); color:var(--accent); transform:translateY(-1px); }
+  .icon-btn:disabled { opacity:.4; cursor:not-allowed; box-shadow:none; transform:none; border-color:var(--border); color:var(--muted); }
+  .icon-btn.primary { color:#fff; border:none; background:linear-gradient(135deg,var(--accent),var(--accent2)); box-shadow:0 4px 12px rgba(99,102,241,.4); }
+  .icon-btn.primary:hover { color:#fff; box-shadow:0 6px 16px rgba(99,102,241,.5); }
+  #fileName { flex:1; min-width:0; text-align:left; font-size:12px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+  #mdToolbar { display:flex; align-items:center; gap:1px; padding:6px 10px; border-bottom:1px solid var(--border); flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; flex-shrink:0; }
+  #mdToolbar::-webkit-scrollbar { display:none; }
+  #mdToolbar button { min-width:24px; height:28px; padding:0 4px; border:none; border-radius:6px; background:transparent; color:var(--text); font:600 12.5px/1 inherit; cursor:pointer; flex-shrink:0; }
+  #mdToolbar button:hover { background:color-mix(in srgb,var(--accent) 16%,transparent); color:var(--accent); }
+    #mdToolbar svg { width:16px; height:16px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; display:block; margin:auto; }
+  #mdToolbar i { width:1px; height:16px; background:var(--border); margin:0 3px; flex-shrink:0; }
+  #editor { flex:1; min-height:0; display:flex; flex-direction:column; }
+  #editor .cm-editor { flex:1; min-height:0; }
+  #editorStats { flex-shrink:0; display:flex; align-items:center; gap:14px; padding:6px 16px; font-size:12px; color:var(--muted); border-top:1px solid var(--border); font-variant-numeric:tabular-nums; white-space:nowrap; overflow:hidden; }
+
+  #resizer { width:12px; cursor:col-resize; flex-shrink:0; position:relative; }
+  #resizer::after { content:''; position:absolute; top:50%; left:4px; width:4px; height:48px; margin-top:-24px; border-radius:4px; background:var(--border); transition:background .15s, height .15s; }
+  #resizer:hover::after, #resizer.dragging::after { background:var(--accent); height:80px; margin-top:-40px; }
+  #resizer.collapsed { display:none; }
+  #rail { position:fixed; left:0; top:12px; bottom:12px; width:64px; z-index:40; display:flex; flex-direction:column; align-items:center; gap:10px; padding:14px 0; background:var(--panel); backdrop-filter:blur(16px); border:1px solid var(--border); border-left:none; border-radius:0 18px 18px 0; box-shadow:var(--shadow); transform:translateX(calc(-100% + 10px)); transition:transform .22s ease; }
+  #rail::after { content:''; position:absolute; right:3px; top:50%; width:3px; height:40px; margin-top:-20px; border-radius:3px; background:var(--accent); opacity:.7; transition:opacity .2s; }
+  #rail:hover, #rail:has(:focus-visible) { transform:translateX(0); }
+  #rail:hover::after, #rail:has(:focus-visible)::after { opacity:0; }
+  .rail-sep { flex:1; }
+  #rail.inline { position:static; transform:none; width:auto; flex-direction:row; padding:0; gap:6px; background:none; backdrop-filter:none; border:none; border-radius:0; box-shadow:none; margin-left:auto; }
+  #rail.inline::after { display:none; }
+  #rail.inline .rail-sep { display:none; }
+  #rail.inline #pvMenu { left:auto; right:0; top:calc(100% + 8px); }
+  .sidebar-header:has(#rail.inline) { overflow:visible; position:relative; z-index:5; }
+  #fileName { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  body:has(#sidebar.collapsed) #rail { cursor:var(--expand-cursor, e-resize); }
+  body:has(#sidebar.collapsed) #toggleBtn, body:has(#sidebar.collapsed) .rail-sep { display:none; }
+  #rail .icon-btn, #pvMenu { cursor:default; }
+  #rail .icon-btn { cursor:pointer; }
+  #rail .icon-btn { color:var(--ic); background:color-mix(in srgb, var(--ic) 16%, var(--panel-solid)) !important; border:1px solid color-mix(in srgb, var(--ic) 45%, transparent); box-shadow:none; }
+  #rail .icon-btn:hover { color:var(--ic); background:color-mix(in srgb, var(--ic) 28%, var(--panel-solid)) !important; filter:none; border-color:var(--ic); }
+  #rail .icon-btn:disabled { color:var(--ic); background:color-mix(in srgb, var(--ic) 16%, var(--panel-solid)) !important; border-color:color-mix(in srgb, var(--ic) 45%, transparent); }
+  #rail .icon-btn { background:transparent !important; border-color:transparent !important; box-shadow:none !important; border-radius:10px; }
+  #rail .icon-btn:hover:not(:disabled) { background:color-mix(in srgb, var(--ic) 14%, transparent) !important; }
+  #rail .icon-btn:disabled { background:transparent !important; border-color:transparent !important; }
+  #rail #saveBtn { --ic:#0a7fb0; } body.dark #rail #saveBtn { --ic:#4aa8d8; }
+  #fileName { color:#f29a3a; font-weight:600; }
+  #fileName.dirty::after { content:' \25CF'; color:var(--accent); }
+  #rail .icon-btn[for="fileInput"] { --ic:#3f9f90; } #rail #pdfBtn { --ic:#d5647a; } #rail #pvBtn { --ic:#8a6397; } #rail #toggleBtn { --ic:#6b6c70; }
+  body.dark #rail .icon-btn[for="fileInput"] { --ic:#5fc0ae; } body.dark #rail #pdfBtn { --ic:#e0788f; } body.dark #rail #pvBtn { --ic:#b58ac4; } body.dark #rail #toggleBtn { --ic:#a0a1a4; }
+  #rail #resetBtn { --ic:#7a9a01; } body.dark #rail #resetBtn { --ic:#a8c83c; }
+  #rail #copyBtn { --ic:#f29a3a; } #rail #syncBtn { --ic:#003da6; } #rail #clearBtn { --ic:#d62828; } #rail #helpBtn { --ic:#8b3dff; }
+  body.dark #rail #copyBtn { --ic:#f5b160; } body.dark #rail #syncBtn { --ic:#6f8fe0; } body.dark #rail #clearBtn { --ic:#ff6b6b; } body.dark #rail #helpBtn { --ic:#b27dff; }
+  #syncBtn { position:relative; } #syncBtn[aria-pressed="false"] { opacity:.55; }
+  #syncBtn[aria-pressed="false"]::after { content:''; position:absolute; left:9px; right:9px; top:50%; height:2px; border-radius:2px; background:currentColor; transform:rotate(-45deg); }
+
+  /* Preview themes (scoped to the preview pane) */
+  body[data-pv="bsw"], body[data-pv="bswdark"] { background: radial-gradient(700px 450px at 0% 0%, color-mix(in srgb, #3f9f90 22%, transparent), transparent 65%), radial-gradient(700px 450px at 100% 0%, color-mix(in srgb, #0a7fb0 20%, transparent), transparent 65%), radial-gradient(700px 450px at 0% 100%, color-mix(in srgb, #8a6397 22%, transparent), transparent 65%), radial-gradient(700px 450px at 100% 100%, color-mix(in srgb, #d5647a 20%, transparent), transparent 65%), var(--bg); }
+  body[data-pv="bsw"] { --bg:#f4f4f4; --panel:#ffffff; --panel-solid:#ffffff; --border:#d9dadb; --text:#4a4a4c; --muted:#909194; --code:#eeefef; --accent:#f0a500; --accent2:#f29a3a; --shadow:0 10px 30px rgba(77,77,79,.14); }
+  body[data-pv="github"] { --bg:#f6f8fa; --panel:#ffffff; --panel-solid:#ffffff; --border:#d0d7de; --text:#1f2328; --muted:#656d76; --code:#f6f8fa; --accent:#0969da; --accent2:#1a7f37; --shadow:0 10px 30px rgba(60,60,60,.12); }
+  body[data-pv="paper"] { --bg:#efe5cc; --panel:#f4ecd8; --panel-solid:#fbf5e6; --border:#d9c9a8; --text:#433422; --muted:#7a6a52; --code:#eadfc4; --accent:#b45309; --accent2:#92400e; --shadow:0 10px 30px rgba(60,60,60,.12); font-family:Georgia,'Iowan Old Style','Times New Roman',serif; }
+  body[data-pv="solarized"] { --bg:#f5eed8; --panel:#fdf6e3; --panel-solid:#fffaf0; --border:#e4dcc3; --text:#586e75; --muted:#839496; --code:#eee8d5; --accent:#268bd2; --accent2:#2aa198; --shadow:0 10px 30px rgba(60,60,60,.12); }
+  body[data-pv="githubdark"] { --bg:#0d1117; --panel:#161b22; --panel-solid:#1c2128; --border:#30363d; --text:#e6edf3; --muted:#8b949e; --code:#1c2128; --accent:#58a6ff; --accent2:#3fb950; --shadow:0 10px 30px rgba(0,0,0,.5); }
+  body[data-pv="solarizeddark"] { --bg:#00212b; --panel:#073642; --panel-solid:#0b3d4b; --border:#14505f; --text:#93a1a1; --muted:#7f9396; --code:#0b3d4b; --accent:#268bd2; --accent2:#2aa198; --shadow:0 10px 30px rgba(0,0,0,.5); }
+  body[data-pv="nord"] { --bg:#242933; --panel:#2e3440; --panel-solid:#3b4252; --border:#434c5e; --text:#d8dee9; --muted:#9aa5b8; --code:#3b4252; --accent:#88c0d0; --accent2:#81a1c1; --shadow:0 10px 30px rgba(0,0,0,.5); }
+  body[data-pv="bswdark"] { --bg:#1b1b1d; --panel:#262628; --panel-solid:#303032; --border:#4a4a4c; --text:#eeefef; --muted:#a0a1a4; --code:#303032; --accent:#fbb423; --accent2:#f29a3a; --shadow:0 10px 30px rgba(0,0,0,.5); }
+  body[data-pv="dracula"] { --bg:#1e1f29; --panel:#282a36; --panel-solid:#343746; --border:#44475a; --text:#f8f8f2; --muted:#a9acc2; --code:#343746; --accent:#bd93f9; --accent2:#ff79c6; --shadow:0 10px 30px rgba(0,0,0,.5); }
+  body[data-pv="tokyo"] { --bg:#13141c; --panel:#1a1b26; --panel-solid:#24283b; --border:#2f334d; --text:#c0caf5; --muted:#787c99; --code:#1f2335; --accent:#7aa2f7; --accent2:#bb9af7; --shadow:0 10px 30px rgba(0,0,0,.5); }
+  body[data-pv="monokai"] { --bg:#1b1c18; --panel:#272822; --panel-solid:#34352d; --border:#49483e; --text:#f8f8f2; --muted:#a6a68a; --code:#34352d; --accent:#a6e22e; --accent2:#f92672; --shadow:0 10px 30px rgba(0,0,0,.5); }
+  body[data-pv="bsw"] #preview h2 { color:#0a7fb0; } body[data-pv="bsw"] #preview h3 { color:#d5647a; } body[data-pv="bsw"] #preview h4 { color:#8a6397; } body[data-pv="bsw"] #preview h5 { color:#f29a3a; } body[data-pv="bsw"] #preview h6 { color:#3f9f90; }
+  body[data-pv="bswdark"] #preview h2 { color:#4aa8d8; } body[data-pv="bswdark"] #preview h3 { color:#e0788f; } body[data-pv="bswdark"] #preview h4 { color:#b58ac4; } body[data-pv="bswdark"] #preview h5 { color:#f29a3a; } body[data-pv="bswdark"] #preview h6 { color:#5fc0ae; }
+  body[data-pv="bsw"] #preview a { color:#5f277e; font-weight:600; } body[data-pv="bswdark"] #preview a { color:#b58ac4; font-weight:600; }
+  body[data-pv="bsw"] #preview h1, body[data-pv="bswdark"] #preview h1 { background:none; -webkit-text-fill-color:currentColor; color:var(--text); letter-spacing:.01em; }
+  body[data-pv="bsw"] #preview blockquote, body[data-pv="bswdark"] #preview blockquote { font-style:italic; }
+  body[data-pv="bsw"] #preview h1, body[data-pv="github"] #preview h1, body[data-pv="paper"] #preview h1 { background:none; color:var(--text); -webkit-text-fill-color:var(--text); }
+  body[data-pv] #preview { color:var(--text); }
+  body[data-pv="plain"] { background:#fff; --bg:#ffffff; --panel:#ffffff; --panel-solid:#ffffff; --border:#e5e7eb; --text:#111827; --muted:#6b7280; --code:#f3f4f6; --accent:#374151; --accent2:#111827; --shadow:none; }
+  body[data-pv="plain"] #preview h1, body[data-pv="plain"] #preview h2, body[data-pv="plain"] #preview h3, body[data-pv="plain"] #preview h4, body[data-pv="plain"] #preview h5, body[data-pv="plain"] #preview h6 { background:none; color:var(--text); -webkit-text-fill-color:var(--text); }
+  body[data-pv="plain"] #preview a { color:#111827; text-decoration:underline; }
+  body[data-pv="plain"] { --hl-kw:#111827; --hl-str:#4b5563; --hl-num:#4b5563; --hl-com:#9ca3af; --hl-fn:#111827; --hl-attr:#374151; --hl-var:#374151; }
+
+  #pvMenu { position:absolute; left:calc(100% + 8px); width:190px; padding:8px; display:none; flex-direction:column; gap:2px; background:var(--panel-solid); border:1px solid var(--border); border-radius:14px; box-shadow:var(--shadow); }
+  #pvMenu.open { display:flex; }
+  #pvMenu .pv-title { font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); padding:4px 8px 6px; }
+  #pvMenu button { display:flex; align-items:center; gap:10px; width:100%; padding:7px 8px; border:none; border-radius:9px; background:transparent; color:var(--text); font:inherit; font-size:13px; cursor:pointer; text-align:left; }
+  #pvMenu { max-height:calc(100vh - 24px); overflow-y:auto; }
+  #pvMenu .pv-sep { margin-top:6px; border-top:1px solid var(--border); padding-top:10px; }
+  #pvMenu .strip { display:flex; width:22px; height:22px; border-radius:7px; overflow:hidden; flex-shrink:0; border:1px solid rgba(0,0,0,.12); }
+  #pvMenu .strip i { flex:1; }
+  #pvMenu button:hover { background:var(--code); }
+  #pvMenu button.active { background:var(--code); font-weight:700; }
+  #pvMenu .sw { width:22px; height:22px; border-radius:7px; border:1px solid rgba(0,0,0,.15); position:relative; flex-shrink:0; overflow:hidden; }
+  #pvMenu .sw::after { content:''; position:absolute; right:0; bottom:0; width:11px; height:11px; background:var(--c); border-top-left-radius:6px; }
+  #pvMenu .tick { margin-left:auto; color:var(--accent); visibility:hidden; }
+  #pvMenu button.active .tick { visibility:visible; }
+  #rail.menu-open { transform:translateX(0); }
+  #rail.menu-open::after { opacity:0; }
+
+  #preview-wrapper { flex:1; min-width:0; position:relative; display:flex; flex-direction:column; overflow:hidden; background:var(--panel); border:1px solid var(--border); border-radius:16px; box-shadow:var(--shadow); }
+  .spacer { flex:1; }
+  #devInfo { margin-left:auto; padding:0; text-align:right; font-size:10.5px; color:var(--muted); white-space:nowrap; }
+  #toTop { position:absolute; right:22px; bottom:22px; z-index:6; width:40px; height:40px; display:flex; align-items:center; justify-content:center; padding:0; border-radius:50%; border:1px solid var(--border); background:var(--panel-solid); color:var(--accent); cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,.18); opacity:0; transform:translateY(8px); pointer-events:none; transition:opacity .2s, transform .2s; }
+  #toTop.show { opacity:1; transform:none; pointer-events:auto; }
+  #toTop:hover { border-color:var(--accent); transform:translateY(-2px); }
+  #statusBadge { position:absolute; top:12px; right:16px; z-index:5; font-size:12px; color:#92400e; background:#fef3c7; padding:5px 12px; border-radius:999px; border:1px solid #fcd34d; display:none; animation:pulse 1.2s infinite; }
+  @keyframes pulse { 50% { opacity:.55; } }
+
+  #preview { will-change:scroll-position; flex:1; width:100%; min-width:0; box-sizing:border-box; padding:44px clamp(16px,4vw,48px) 48px; overflow-x:hidden; overflow-y:auto; overflow-wrap:anywhere; line-height:1.7; font-size:15.5px; animation:fade .4s ease; }
+  @media (max-width:700px) {
+    body { flex-direction:column; }
+    #sidebar { width:auto !important; min-width:0; height:38%; flex:none; }
+    #sidebar.collapsed { height:0; }
+    #resizer { display:none; }
+    #preview-wrapper { min-height:0; }
+  }
+  @keyframes fade { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+  #preview h1, #preview h2 { padding-bottom:.3em; border-bottom:1px solid var(--border); }
+  #preview h1 { background:linear-gradient(135deg,var(--accent),var(--accent2)); -webkit-background-clip:text; background-clip:text; color:transparent; border-bottom-color:var(--border); }
+  #preview a { color:var(--accent); }
+  #preview img, #preview video { max-width:100%; height:auto; }
+  .cz { position:relative; margin:22px 0; }
+  .cz-track { display:flex; overflow-x:auto; scroll-snap-type:x mandatory; scroll-behavior:smooth; gap:0; border-radius:20px; border:1px solid rgba(128,128,128,.3); box-shadow:0 12px 40px rgba(0,0,0,.15); scrollbar-width:none; }
+  .cz-track::-webkit-scrollbar { display:none; }
+  .cz-slide { flex:0 0 100%; scroll-snap-align:center; margin:0; background:rgba(128,128,128,.08); }
+  #preview .cz-slide img { display:block; width:100%; height:auto; aspect-ratio:16/9; max-height:300px; object-fit:contain; margin:0; background:#f4f6fa; }
+  .cz-slide figcaption { padding:12px 18px; font-size:14px; text-align:center; }
+  .cz-btn { position:absolute; top:calc(50% - 40px); width:40px; height:40px; border-radius:50%; border:0; background:rgba(0,0,0,.55); color:#fff; font-size:26px; line-height:1; cursor:pointer; }
+  .cz-btn:hover { background:#8b3dff; }
+  .cz-prev { left:12px; } .cz-next { right:12px; }
+  .cz-dots { display:flex; justify-content:center; gap:8px; margin-top:12px; }
+  .cz-dot { width:10px; height:10px; padding:0; border-radius:50%; border:0; background:rgba(128,128,128,.45); cursor:pointer; }
+  .cz-dot.on { background:#8b3dff; width:26px; border-radius:6px; }
+  @media print { .cz-btn, .cz-dots { display:none; } .cz-track { display:block; overflow:visible; } }
+  #preview table { table-layout:auto; max-width:100%; }
+  #preview pre { max-width:100%; box-sizing:border-box; overflow-wrap:normal; }
+  pre { background:var(--code); padding:14px 16px; border-radius:12px; overflow-x:auto; border:1px solid var(--border); }
+  code { font-family:'JetBrains Mono',Consolas,monospace; background:var(--code); padding:2px 6px; border-radius:6px; font-size:.9em; }
+  pre code { background:transparent; padding:0; }
+  /* Syntax colours per theme */
+  body { --hl-kw:#7c3aed; --hl-str:#059669; --hl-num:#d97706; --hl-com:#94a3b8; --hl-fn:#2563eb; --hl-attr:#db2777; --hl-var:#0891b2; }
+  body.dark { --hl-kw:#a78bfa; --hl-str:#34d399; --hl-num:#fbbf24; --hl-com:#64748b; --hl-fn:#60a5fa; --hl-attr:#f472b6; --hl-var:#22d3ee; }
+  body[data-pv="bsw"] { --hl-kw:#8a6397; --hl-str:#3f9f90; --hl-num:#d9761a; --hl-com:#909194; --hl-fn:#0a7fb0; --hl-attr:#d5647a; --hl-var:#003da6; }
+  body[data-pv="bswdark"] { --hl-kw:#b58ac4; --hl-str:#5fc0ae; --hl-num:#f29a3a; --hl-com:#909194; --hl-fn:#4aa8d8; --hl-attr:#e0788f; --hl-var:#fbb423; }
+  body[data-pv="github"] { --hl-kw:#cf222e; --hl-str:#0a3069; --hl-num:#0550ae; --hl-com:#6e7781; --hl-fn:#8250df; --hl-attr:#116329; --hl-var:#953800; }
+  body[data-pv="githubdark"] { --hl-kw:#ff7b72; --hl-str:#a5d6ff; --hl-num:#79c0ff; --hl-com:#8b949e; --hl-fn:#d2a8ff; --hl-attr:#7ee787; --hl-var:#ffa657; }
+  body[data-pv="paper"] { --hl-kw:#9a3412; --hl-str:#3f6212; --hl-num:#b45309; --hl-com:#8a6a3b; --hl-fn:#1d4ed8; --hl-attr:#9d174d; --hl-var:#0f766e; }
+  body[data-pv="solarized"] { --hl-kw:#859900; --hl-str:#2aa198; --hl-num:#d33682; --hl-com:#93a1a1; --hl-fn:#268bd2; --hl-attr:#b58900; --hl-var:#cb4b16; }
+  body[data-pv="solarizeddark"] { --hl-kw:#859900; --hl-str:#2aa198; --hl-num:#d33682; --hl-com:#657b83; --hl-fn:#268bd2; --hl-attr:#b58900; --hl-var:#cb4b16; }
+  body[data-pv="nord"] { --hl-kw:#81a1c1; --hl-str:#a3be8c; --hl-num:#b48ead; --hl-com:#616e88; --hl-fn:#88c0d0; --hl-attr:#8fbcbb; --hl-var:#d08770; }
+  body[data-pv="dracula"] { --hl-kw:#ff79c6; --hl-str:#f1fa8c; --hl-num:#bd93f9; --hl-com:#6272a4; --hl-fn:#50fa7b; --hl-attr:#ffb86c; --hl-var:#8be9fd; }
+  body[data-pv="tokyo"] { --hl-kw:#bb9af7; --hl-str:#9ece6a; --hl-num:#ff9e64; --hl-com:#565f89; --hl-fn:#7aa2f7; --hl-attr:#73daca; --hl-var:#f7768e; }
+  body[data-pv="monokai"] { --hl-kw:#f92672; --hl-str:#e6db74; --hl-num:#ae81ff; --hl-com:#75715e; --hl-fn:#a6e22e; --hl-attr:#66d9ef; --hl-var:#fd971f; }
+  .hljs-keyword, .hljs-selector-tag, .hljs-literal, .hljs-built_in, .hljs-doctag, .hljs-meta .hljs-keyword { color:var(--hl-kw); }
+  .hljs-string, .hljs-regexp, .hljs-addition, .hljs-meta .hljs-string { color:var(--hl-str); }
+  .hljs-number, .hljs-symbol, .hljs-bullet, .hljs-link { color:var(--hl-num); }
+  .hljs-comment, .hljs-quote, .hljs-deletion { color:var(--hl-com); font-style:italic; }
+  .hljs-title, .hljs-title.function_, .hljs-section { color:var(--hl-fn); }
+  .hljs-attr, .hljs-attribute, .hljs-name, .hljs-tag, .hljs-type, .hljs-title.class_, .hljs-selector-class, .hljs-selector-id { color:var(--hl-attr); }
+  .hljs-variable, .hljs-template-variable, .hljs-params, .hljs-property, .hljs-meta { color:var(--hl-var); }
+  .hljs-emphasis { font-style:italic; } .hljs-strong { font-weight:700; }
+  blockquote { border-left:4px solid var(--accent); margin:12px 0; padding:4px 16px; color:var(--muted); background:var(--code); border-radius:0 10px 10px 0; }
+  table { border-collapse:separate; border-spacing:0; width:100%; margin:16px 0; border:1px solid var(--border); border-radius:10px; overflow:hidden; }
+  th, td { border-bottom:1px solid var(--border); padding:8px 14px; text-align:left; }
+  tr:last-child td { border-bottom:none; }
+  th { background:var(--code); }
+  .mermaid-container { contain:layout paint; max-width:100%; box-sizing:border-box; margin:20px 0; padding:20px; text-align:center; overflow-x:auto; background:var(--panel-solid); border:1px solid var(--border); border-radius:14px; box-shadow:0 4px 16px rgba(0,0,0,.05); }
+  .mermaid-error { color:#be123c; background:#fff1f2; border:1px solid #fda4af; padding:10px 14px; border-radius:10px; font-family:Consolas,monospace; font-size:12px; text-align:left; white-space:pre-wrap; }
+  .mermaid-container { position:relative; overflow:hidden; cursor:grab; }
+  .mermaid-container.grabbing { cursor:grabbing; }
+  .dg-stage { transform-origin:center; transition:transform .12s ease-out; display:inline-block; max-width:100%; }
+  .mermaid-container.grabbing .dg-stage { transition:none; }
+  .dg-tools { position:absolute; top:10px; right:10px; display:flex; gap:4px; opacity:0; transition:opacity .2s; }
+  .mermaid-container:hover .dg-tools { opacity:1; }
+  .dg-tools button { width:24px; height:24px; border:1px solid var(--border); background:var(--panel-solid); color:var(--text); border-radius:8px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding:0; }
+  .dg-tools button svg { width:12px; height:12px; pointer-events:none; }
+  .dg-tools button:hover { border-color:var(--accent); color:var(--accent); }
+  .mermaid-container.maximized { position:fixed; inset:0; z-index:1000; margin:0; border-radius:0; border:none; display:flex; align-items:center; justify-content:center; background:var(--panel-solid); padding:40px; }
+  .mermaid-container.maximized .dg-stage { width:100%; height:100%; display:flex; align-items:center; justify-content:center; }
+  .mermaid-container.maximized .dg-stage > svg { width:100% !important; height:100% !important; max-width:none !important; }
+  .mermaid-container.maximized .dg-tools { opacity:1; position:fixed; top:16px; right:16px; }
+  @media print {
+    @page { margin: 0; }
+    html, body { height:auto !important; width:auto !important; overflow:visible !important; display:block !important; }
+    body { background:var(--panel-solid) !important; padding:14mm !important; box-decoration-break:clone; -webkit-box-decoration-break:clone; }
+    html { padding:0 !important; }
+    #rail, #sidebar, #resizer, .dg-tools, #statusBadge, #devInfo, #editorStats, #toTop { display:none !important; }
+    #preview h1 { background:none !important; color:var(--accent) !important; -webkit-text-fill-color:var(--accent); }
+    #preview-wrapper { display:block !important; border:none !important; box-shadow:none !important; background:transparent !important; backdrop-filter:none !important; overflow:visible !important; }
+    #preview { padding:0 !important; overflow:visible !important; animation:none !important; font-size:12pt; }
+    .mermaid-container { break-inside:avoid; overflow:visible !important; box-shadow:none !important; cursor:default; }
+    .dg-stage { transform:none !important; }
+    pre, table, blockquote { break-inside:avoid; }
+    * { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  }
+  /* Mermaid/D2 attach temporary measuring nodes to <body>; keep them out of the flex layout */
+  body > :not(#sidebar):not(#resizer):not(#rail):not(#preview-wrapper):not(script):not(style) { position:fixed !important; left:-10000px !important; top:0 !important; pointer-events:none; }
+  body.no-anim, body.no-anim * { transition:none !important; animation:none !important; }
+  * { scrollbar-width:thin; scrollbar-color:var(--border) transparent; }
+  .math-block { margin:1em 0; overflow-x:auto; text-align:center; } .math-block .katex-display { margin:0; }
+.mermaid-container.pending{min-height:140px;position:relative}.mermaid-container.pending::after{content:'Rendering diagram…';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px}
+</style>
+</head>
+<body>
+
+<nav id="rail" aria-label="Toolbar">
+    <label class="icon-btn" for="fileInput" title="Open Markdown file" aria-label="Open Markdown file"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg></label>
+    <input type="file" id="fileInput" accept=".md,.markdown,.txt">
+    <button id="saveBtn" class="icon-btn" disabled title="No unsaved changes" aria-label="Save"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg></button>
+    <button id="copyBtn" class="icon-btn" title="Copy Markdown" aria-label="Copy Markdown"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+    <button id="pvBtn" class="icon-btn" title="Theme" aria-label="Theme"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.8-.9 1.5-1.9-.3-1 .4-2.1 1.5-2.1H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10.5" cy="7.5" r="1"/><circle cx="15" cy="7.5" r="1"/></svg></button>
+    <button id="pdfBtn" class="icon-btn" disabled title="Open a file to enable PDF export" aria-label="Export as PDF"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2.5H7A2.5 2.5 0 0 0 4.5 5v14A2.5 2.5 0 0 0 7 21.5h10a2.5 2.5 0 0 0 2.5-2.5V8z"/><path d="M14 2.5V8h5.5"/><text x="12" y="17.2" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="6.2" font-weight="800" fill="currentColor" stroke="none">PDF</text></svg></button>
+    <button id="resetBtn" class="icon-btn" disabled title="Reset to original content" aria-label="Reset content"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>
+    <button id="clearBtn" class="icon-btn" title="Clear contents" aria-label="Clear contents"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg></button>
+    <button id="syncBtn" class="icon-btn" title="Sync scroll: on" aria-label="Sync scroll" aria-pressed="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21 16-4 4-4-4"/><path d="M17 20V4"/><path d="m3 8 4-4 4 4"/><path d="M7 4v16"/></svg></button>
+    <button id="helpBtn" class="icon-btn" title="Help &amp; feature guide" aria-label="Help and feature guide"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></button>
+    <div id="pvMenu" role="menu"></div>
+    <span class="rail-sep"></span>
+    <button id="toggleBtn" class="icon-btn" title="Hide source pane" aria-label="Hide source pane"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/><path d="m16 10-2 2 2 2"/></svg></button>
+</nav>
+
+<aside id="sidebar">
+  <div class="sidebar-header">
+    <span id="fileName">No file selected</span>
+  </div>
+  <div id="mdToolbar" role="toolbar" aria-label="Markdown formatting">
+    <button data-a="undo" title="Undo (Ctrl+Z)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg></button><button data-a="redo" title="Redo (Ctrl+Shift+Z)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 14 5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/></svg></button><i></i>
+    <button data-a="h1" title="Heading 1"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h8M4 18V6M12 18V6"/><path d="m17 12 3-2v8"/></svg></button><button data-a="h2" title="Heading 2"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h8M4 18V6M12 18V6"/><path d="M21 18h-4c0-4 4-3 4-6 0-1.5-2-2.5-4-1"/></svg></button><button data-a="h3" title="Heading 3"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h8M4 18V6M12 18V6"/><path d="M17.5 10.5c1.7-1 3.5 0 3.5 1.5a2 2 0 0 1-2 2"/><path d="M17 17.5c2 1.5 4 .3 4-1.5a2 2 0 0 0-2-2"/></svg></button><i></i>
+    <button data-a="bold" title="Bold (Ctrl+B)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h6a4 4 0 0 1 0 8H7zM7 12h7a4 4 0 0 1 0 8H7z"/></svg></button><button data-a="italic" title="Italic (Ctrl+I)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 4h7M6 20h7M15 4 9 20"/></svg></button><button data-a="strike" title="Strikethrough"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h16"/><path d="M17 7c-.5-1.8-2.3-3-5-3-3 0-4.5 1.5-4.5 3.5 0 1.3.8 2.2 2.5 2.8"/><path d="M13 14c2 .6 3.5 1.7 3.5 3.5 0 2-1.8 3.5-4.5 3.5-2.7 0-4.3-1.3-5-3"/></svg></button><button data-a="code" title="Inline code"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/></svg></button><i></i>
+    <button data-a="ul" title="Bulleted list"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></button><button data-a="ol" title="Numbered list"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6h11M10 12h11M10 18h11"/><path d="M4 6h1v4M4 10h2"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/></svg></button><button data-a="task" title="Task list"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="6" height="6" rx="1"/><path d="m3 17 2 2 4-4M13 6h8M13 18h8"/></svg></button><button data-a="quote" title="Quote"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" stroke="none" d="M6 17h3l2-4V7H5v6h3l-2 4zm8 0h3l2-4V7h-6v6h3l-2 4z"/></svg></button><i></i>
+    <button data-a="link" title="Link (Ctrl+K)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button><button data-a="image" title="Image"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.09-3.09a2 2 0 0 0-2.82 0L6 21"/></svg></button><button data-a="table" title="Table"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg></button><button data-a="codeblock" title="Code block"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5a2 2 0 0 0 2 2h1M16 21h1a2 2 0 0 0 2-2v-5a2 2 0 0 1 2-2 2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1"/></svg></button><button data-a="hr" title="Horizontal rule"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h18"/></svg></button><button data-a="mermaid" title="Mermaid diagram"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="6" height="6" rx="1"/><rect x="15" y="15" width="6" height="6" rx="1"/><path d="M6 9v3a3 3 0 0 0 3 3h6"/></svg></button>
+  </div>
+  <div id="editor"></div>
+  <div id="editorStats" aria-live="off"><span id="statChars">0 characters</span><span id="statWords">0 words</span><span id="statLines">0 lines</span><footer id="devInfo">&copy; <span id="devYear"></span> <span id="devName">SRINIS</span> &middot; Markdown &amp; Diagram Viewer</footer></div>
+</aside>
+
+<div id="resizer" title="Drag to resize"></div>
+
+<section id="preview-wrapper">
+  <span id="statusBadge">Loading...</span>
+  <button id="toTop" title="Scroll to top" aria-label="Scroll to top"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 15 6-6 6 6"/><path d="M6 5h12"/></svg></button>
+  <div id="preview"></div>
+</section>
+
+<script src="welcome.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

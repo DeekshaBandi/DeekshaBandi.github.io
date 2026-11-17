@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://deekshabandi.github.io/markdown-diagram-viewer/sitemap.xml
