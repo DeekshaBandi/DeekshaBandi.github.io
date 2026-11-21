@@ -465,20 +465,27 @@ if (location.protocol !== 'chrome-extension:') {
   const carouselAt = md.indexOf('\n\n<div class="cz">');
   const hero = md.slice(0, carouselAt)
     .replace('<div style="background:', '<div class="cz-slide cz-hero" style="background:')
-    .replace('border-radius:28px;position:relative;padding:64px 28px 56px', 'position:relative;padding:56px 64px 44px')
+    .replace('border-radius:28px;position:relative;padding:64px 28px 56px', 'position:relative;padding:50px 64px 42px')
     .replace(';box-shadow:0 20px 60px rgba(139,61,255,.35)', '')
-    .replace('<div style="position:absolute;top:-16px;left:-16px;', '<div class="cz-badge" style="position:absolute;top:12px;left:12px;transform-origin:top left;');
+    .replace('<div style="position:absolute;top:-16px;left:-16px;', '<div class="cz-badge" style="position:absolute;top:12px;left:12px;transform-origin:top left;')
+    // Compact, so the banner doesn't make every slide tall
+    .replace('font-size:clamp(34px,6vw,60px);font-weight:800;line-height:1.05;margin:22px 0 14px', 'font-size:clamp(28px,4.2vw,44px);font-weight:800;line-height:1.05;margin:14px 0 10px')
+    .replace('font-size:18px;line-height:1.55;max-width:680px;margin:0 auto 28px', 'font-size:16px;line-height:1.5;max-width:640px;margin:0 auto 18px')
+    .replace('<div style="font-size:14px;opacity:.9;margin-top:26px">Made for architects, engineers and writers who think in text and diagrams — and a clean reading experience for executives.</div>',
+      '<div style="display:inline-block;max-width:640px;font-size:15px;font-weight:600;line-height:1.45;margin-top:18px;padding:10px 18px;border-radius:14px;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.5);box-shadow:0 6px 18px rgba(0,0,0,.15)">✨ Made for <b style="color:#ffe66d">architects, engineers and writers</b> who think in text and diagrams — and a clean reading experience for <b style="color:#ffe66d">executives</b>.</div>')
+    .replaceAll('padding:11px 22px', 'padding:8px 18px');
   const lines = md.slice(carouselAt).trimStart().split('\n');
   const at = (img) => lines.findIndex((l) => l.startsWith(`<figure class="cz-slide"><img src="help/${img}.png"`));
-  // Pair related screenshots in one slide each
-  const pair = (a, b, caption) => {
-    const img = (i) => lines[i].match(/<img [^>]*>/)[0];
-    const i = at(a), j = at(b);
-    lines[i] = `<figure class="cz-slide"><div class="cz-pair">${img(i)}${img(j)}</div><figcaption>${caption}</figcaption></figure>`;
-    lines.splice(j, 1);
+  // Group related screenshots in one slide each
+  const group = (imgs, caption) => {
+    const rows = imgs.map(at);
+    const tags = rows.map((i) => lines[i].match(/<img [^>]*>/)[0]).join('');
+    lines[rows[0]] = `<figure class="cz-slide"><div class="cz-pair${imgs.length > 2 ? ' cz-trio' : ''}">${tags}</div><figcaption>${caption}</figcaption></figure>`;
+    rows.slice(1).sort((x, y) => y - x).forEach((i) => lines.splice(i, 1));
   };
-  pair('overview', 'collapsed', '<b>Live split view and focus mode</b> — Type on the left and see the result instantly, or hide the source pane for a full-width preview.');
-  pair('toolbar', 'theme-menu', '<b>Toolbar and theme switcher</b> — Every formatting action is one click away, and all 14 themes sit in one menu.');
+  group(['overview', 'collapsed'], '<b>Live split view and focus mode</b> — Type on the left and see the result instantly, or hide the source pane for a full-width preview.');
+  group(['toolbar', 'theme-menu'], '<b>Toolbar and theme switcher</b> — Every formatting action is one click away, and all 14 themes sit in one menu.');
+  group(['theme-dark', 'theme-paper', 'theme-plain'], '<b>Dark, paper and plain themes</b> — Text and diagrams recolour together, from a warm print-like page to flat, distraction-free white.');
   const c = at('diagram-colors'), d = at('all-diagrams');
   [lines[c], lines[d]] = [lines[d], lines[c]];
   const slides = lines.filter((l) => l.startsWith('<figure class="cz-slide">')).length + 1;
@@ -490,5 +497,12 @@ if (location.protocol !== 'chrome-extension:') {
   const compare = md.slice(switchAt + 5, ctaAt).trim();
   md = md.slice(0, switchAt) + md.slice(ctaAt);
   const statsAt = md.indexOf('\n\n<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px');
-  window.WELCOME_MD = md.slice(0, statsAt) + '\n\n' + compare + md.slice(statsAt);
+  // Browser extension links, shown under the carousel
+  const soon = (name) => `<span style="display:inline-flex;align-items:center;padding:8px 16px;border-radius:999px;border:1px dashed rgba(128,128,128,.55);font-size:14px;font-weight:600;opacity:.75">${name}</span>`;
+  const stores = '<div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;align-items:center;margin:18px 0 6px">'
+    + '<span style="font-size:14px;font-weight:700;opacity:.8">Get the extension:</span>'
+    + '<a href="https://chromewebstore.google.com/detail/markdown-diagram-viewer/mnegccoocoiojjkegdihcnaigoebegpc" style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:999px;background:linear-gradient(135deg,#8b3dff,#19c3ff);color:#fff;font-size:14px;font-weight:700;text-decoration:none;box-shadow:0 4px 14px rgba(139,61,255,.3)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19.4 13a2 2 0 1 0 0-4H18V6a2 2 0 0 0-2-2h-3V2.6a2 2 0 1 0-4 0V4H6a2 2 0 0 0-2 2v3h1.4a2 2 0 1 1 0 4H4v3a2 2 0 0 0 2 2h3v-1.4a2 2 0 1 1 4 0V18h3a2 2 0 0 0 2-2v-3z"/></svg>Add to Chrome — free</a>'
+    + soon('Edge · coming soon') + soon('Firefox · coming soon') + soon('More browsers · planned')
+    + '</div>';
+  window.WELCOME_MD = md.slice(0, statsAt) + '\n\n' + stores + '\n\n' + compare + md.slice(statsAt);
 }

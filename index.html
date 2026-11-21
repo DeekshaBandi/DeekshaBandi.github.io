@@ -179,10 +179,19 @@
   .cz-badge { transform:rotate(-10deg) scale(.75) !important; }
   @container (max-width:600px) { .cz-badge { display:none; } }
   .cz:has(.cz-hero) figure.cz-slide { display:flex; flex-direction:column; }
-  #preview .cz:has(.cz-hero) .cz-slide img { flex:1 1 auto; height:0; min-height:220px; max-height:none; aspect-ratio:auto; }
-  .cz-pair { flex:1 1 auto; min-height:220px; display:grid; grid-template-rows:minmax(0,1fr) minmax(0,1fr); gap:6px; padding:6px; background:#f4f6fa; }
-  #preview .cz:has(.cz-hero) .cz-pair img { height:100%; min-height:0; }
-  @container (min-width:1000px) { .cz-pair { grid-template-rows:minmax(0,1fr); grid-template-columns:1fr 1fr; } }
+  #preview .cz:has(.cz-hero) .cz-slide img { flex:1 1 auto; height:0; min-height:160px; max-height:none; aspect-ratio:auto; }
+  .cz-pair { flex:1 1 auto; min-height:160px; position:relative; overflow:hidden; background:radial-gradient(circle at 15% 20%, rgba(139,61,255,.18), transparent 55%), radial-gradient(circle at 85% 85%, rgba(25,195,255,.2), transparent 55%), #f4f6fa; }
+  #preview .cz:has(.cz-hero) .cz-pair img { position:absolute; min-height:0; width:auto; aspect-ratio:1440/860; border-radius:12px; border:1px solid rgba(255,255,255,.7); box-shadow:0 14px 34px rgba(30,20,80,.28); transition:transform .3s; }
+  #preview .cz:has(.cz-hero) .cz-pair:not(.cz-trio) img { height:62%; }
+  #preview .cz-pair:not(.cz-trio) img:nth-child(1) { top:7%; left:5%; transform:rotate(-3deg); }
+  #preview .cz-pair:not(.cz-trio) img:nth-child(2) { bottom:7%; right:5%; transform:rotate(2deg); z-index:1; }
+  #preview .cz-pair:hover img:hover { z-index:3; transform:scale(1.03); }
+  #preview .cz:has(.cz-hero) .cz-trio img { height:56%; }
+  #preview .cz-trio img:nth-child(1) { top:4%; left:4%; }
+  #preview .cz-trio img:nth-child(2) { top:22%; left:50%; transform:translateX(-50%); z-index:1; }
+  #preview .cz-trio img:nth-child(3) { top:40%; right:4%; z-index:2; }
+  #preview .cz-trio img:nth-child(2):hover { transform:translateX(-50%) scale(1.03); }
+  @container (max-width:600px) { .cz-pair { display:grid; grid-auto-rows:minmax(0,1fr); gap:6px; padding:6px; } #preview .cz:has(.cz-hero) .cz-pair img { position:static; width:100%; height:100%; transform:none; box-shadow:none; border:0; border-radius:6px; } }
   #preview table { table-layout:auto; max-width:100%; }
   #preview pre { max-width:100%; box-sizing:border-box; overflow-wrap:normal; }
   pre { background:var(--code); padding:14px 16px; border-radius:12px; overflow-x:auto; border:1px solid var(--border); }
