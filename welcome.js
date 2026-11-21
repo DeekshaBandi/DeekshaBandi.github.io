@@ -402,6 +402,7 @@ Click to format — no syntax to memorise.
 | Control | What it does |
 |---|---|
 | <svg width="18" height="18" style="vertical-align:-4px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg> **Open** | Pick a Markdown file; **Save** writes back to the *same* file |
+| <svg width="18" height="18" style="vertical-align:-4px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> **Open from URL** | Paste the web address of a Markdown file. GitHub and Gist page links are converted to the raw file, and images in the document load from the same place |
 | <svg width="18" height="18" style="vertical-align:-4px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg> **Save** | Lights up when there are unsaved changes — <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>S</kbd> |
 | <svg width="18" height="18" style="vertical-align:-4px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> **Copy Markdown** | Puts the full source on your clipboard |
 | <svg width="18" height="18" style="vertical-align:-4px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.8-.9 1.5-1.9-.3-1 .4-2.1 1.5-2.1H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10.5" cy="7.5" r="1"/><circle cx="15" cy="7.5" r="1"/></svg> **Theme** | 14 page themes and 8 diagram palettes |
@@ -434,7 +435,9 @@ Click to format — no syntax to memorise.
 - 🔢 **Live counts** — characters, words and lines under the editor.
 - 🛟 **Draft recovery** — close the tab by accident and your unsaved text returns.
 - ⬆️ **Back to top** appears as you scroll.
-- 🌐 **Extension mode** — open any §.md§ file (or a raw GitHub / Gist file) and it renders here. For local files, enable *Allow access to file URLs* on the extension's Details page.
+- 🖱️ **Drag and drop** — drop a §.md§ file anywhere on the page to open it, no setup needed.
+- 🔗 **Contents links** — links such as §[Install](#install)§ jump to that heading, so a table of contents just works.
+- 🌐 **Extension mode** — open any §.md§ file (or a raw GitHub / Gist file) and it renders here. For local files, turn on *Allow access to file URLs* once on the extension's Details page; the setup page shows how.
 
 ---
 
@@ -457,6 +460,15 @@ Click to format — no syntax to memorise.
 </div>
 
 `.replace(/§/g, '`');
+
+// Help guide: the feature guide only, without the welcome banner, stats, comparison and closing call to action
+{
+  const md = window.WELCOME_MD;
+  const statsAt = md.indexOf('<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px');
+  const switchAt = md.indexOf('---\n\n## ⚖️ Why people switch');
+  window.HELP_MD = '# Help & feature guide\n\n' + md.slice(md.indexOf('<div class="cz">'), statsAt)
+    + md.slice(md.indexOf('## Everything you need'), switchAt).trimEnd() + '\n';
+}
 
 // Website only (the extension keeps the layout above): the banner becomes the carousel's first slide,
 // related screenshots share a slide, and the comparison table moves up to sit right below the carousel.
@@ -494,7 +506,11 @@ if (location.protocol !== 'chrome-extension:') {
     .replace(/<div class="cz-dots">.*?<\/div>/, `<div class="cz-dots">${'<button class="cz-dot" aria-label="Slide"></button>'.repeat(slides)}</div>`);
   const switchAt = md.indexOf('---\n\n## ⚖️ Why people switch');
   const ctaAt = md.indexOf('<div style="background:linear-gradient(135deg,#19c3ff', switchAt);
-  const compare = md.slice(switchAt + 5, ctaAt).trim();
+  // The comparison becomes an HTML table so it can carry a class for balanced column widths
+  const [heading, ...rows] = md.slice(switchAt + 5, ctaAt).trim().split('\n').filter((l) => l && !/^\|[-:| ]+\|$/.test(l));
+  const cells = (l) => l.slice(1, -1).split('|').map((c) => c.trim().replace(/\*\*(.+?)\*\*/g, '<b>$1</b>'));
+  const row = (l, tag) => '<tr>' + cells(l).map((c, i) => `<${tag}${i ? ' align="center"' : ''}>${c}</${tag}>`).join('') + '</tr>';
+  const compare = `${heading}\n\n<table class="cz-compare"><thead>${row(rows[0], 'th')}</thead><tbody>${rows.slice(1).map((l) => row(l, 'td')).join('')}</tbody></table>`;
   md = md.slice(0, switchAt) + md.slice(ctaAt);
   const statsAt = md.indexOf('\n\n<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px');
   // Browser extension links, shown under the carousel

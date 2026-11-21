@@ -350,7 +350,9 @@ document.getElementById('devYear').textContent = new Date().getFullYear();
     zo.onclick = () => { k = Math.max(k / 1.25, 0.3); apply(); };
     rs.onclick = () => { k = 1; x = y = 0; apply(); };
     dl.onclick = () => {
-      const blob = new Blob([new XMLSerializer().serializeToString(svg)], { type: 'image/svg+xml' });
+      const text = new XMLSerializer().serializeToString(svg);
+      if (window.mdHost?.save) { window.mdHost.save('diagram.svg', text); return; }
+      const blob = new Blob([text], { type: 'image/svg+xml' });
       const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'diagram.svg'; a.click();
       URL.revokeObjectURL(a.href);
     };
@@ -464,7 +466,13 @@ document.getElementById('devYear').textContent = new Date().getFullYear();
   }
 
   // Everything rendered from user Markdown is sanitized (fail closed if the sanitizer is missing)
+  // A document opened from a web address loads its relative images and links from that address
+  let docBase = null;
   if (window.DOMPurify) DOMPurify.addHook('afterSanitizeAttributes', n => {
+    if (docBase) for (const at of ['src', 'href']) {
+      const v = n.getAttribute(at);
+      if (v && !/^(#|[a-z][a-z0-9+.-]*:|\/\/)/i.test(v)) try { n.setAttribute(at, new URL(v, docBase).href); } catch {}
+    }
     const h = n.tagName === 'A' && n.getAttribute('href');
     if (h && !h.startsWith('#')) { n.setAttribute('target', '_blank'); n.setAttribute('rel', 'noopener noreferrer'); }
   });
@@ -573,9 +581,96 @@ document.getElementById('devYear').textContent = new Date().getFullYear();
     const top = resetScroll ? 0 : preview.scrollTop;
     resetScroll = false;
     preview.replaceChildren(...root.childNodes);
+    fitTables();
     preview.scrollTop = top;
     statusBadge.style.display = 'none';
   }
+
+  // Tables that are too wide for the preview get column widths like a person would choose:
+  // - a column whose content fits keeps its natural width;
+  // - ordinary words (up to SHORT px, e.g. "Survey.Contracts", "Medium") never wrap: they set a hard minimum;
+  // - long names, and code names over CODE_SHORT px (file paths, identifiers), may wrap, so their column only needs LONG_MIN px;
+  // - the rest of the space goes to the columns that need it most (usually prose).
+  const measureCtx = document.createElement('canvas').getContext('2d');
+  const SHORT = 140, CODE_SHORT = 80, LONG_MIN = 100, SQUEEZE_MIN = 60;
+  // Cell padding in fitted tables plus slack (index.html: table.fit 8px, table.fit-compact 5px each side)
+  const FIT_PAD = 16 + 6, COMPACT_PAD = 10 + 6;
+  const sum = (a) => a.reduce((x, y) => x + y, 0);
+  // Dense tables whose words can't all fit side by side get a compact layout (smaller text, tighter cells) and are sized again
+  function fitTable(t, compact = false) {
+    t.classList.remove('fit');
+    if (!compact) t.classList.remove('fit-compact');
+    t.querySelector(':scope > colgroup.fit-cols')?.remove();
+    const rows = [...t.rows];
+    if (!rows.length || rows.some((r) => [...r.cells].some((c) => c.colSpan > 1))) return;
+    // Space comes from the container: a too-wide table has already pushed its own box past it
+    const ps = getComputedStyle(t.parentElement);
+    const avail = t.parentElement.clientWidth - parseFloat(ps.paddingLeft) - parseFloat(ps.paddingRight);
+    t.classList.add('measure');
+    // Natural widths plus a little slack: fixed layout and cell borders round a column down by a pixel or two
+    const natural = [...rows[0].cells].map((c) => c.getBoundingClientRect().width + 6);
+    t.classList.remove('measure');
+    if (!avail || sum(natural) <= avail + 1) return;
+    const shortWord = natural.map(() => 0), hasLong = natural.map(() => false);
+    const fonts = new Map();
+    for (const r of rows) [...r.cells].forEach((c, i) => {
+      if (i >= natural.length) return;
+      const walker = document.createTreeWalker(c, NodeFilter.SHOW_TEXT);
+      for (let n; (n = walker.nextNode());) {
+        const el = n.parentElement;
+        if (!fonts.has(el)) { const f = getComputedStyle(el); fonts.set(el, [`${f.fontStyle} ${f.fontWeight} ${f.fontSize} ${f.fontFamily}`, el.closest('code') ? 10 : 0]); }
+        const [font, extra] = fonts.get(el);
+        measureCtx.font = font;
+        for (const w of n.data.split(/\s+/)) {
+          if (!w) continue;
+          const width = measureCtx.measureText(w).width + extra;
+          // Code names (file paths, identifiers) may wrap sooner than ordinary words
+          if (width <= (extra ? CODE_SHORT : SHORT)) shortWord[i] = Math.max(shortWord[i], width); else hasLong[i] = true;
+        }
+      }
+    });
+    const pad = compact ? COMPACT_PAD : FIT_PAD;
+    const hard = shortWord.map((w) => w + pad);
+    if (!compact && sum(hard.map((h, i) => Math.min(natural[i], hasLong[i] ? Math.max(h, SQUEEZE_MIN + pad) : h))) > avail) {
+      t.classList.add('fit-compact');
+      return fitTable(t, true);
+    }
+    const floor = hard.map((h, i) => Math.min(natural[i], hasLong[i] ? Math.max(h, LONG_MIN + pad) : h));
+    const width = floor.slice();
+    let short = sum(width) - avail;
+    // Not enough room: squeeze the long-name columns first, then everything evenly
+    if (short > 0) {
+      const room = width.map((w, i) => hasLong[i] ? Math.max(0, w - Math.max(hard[i], SQUEEZE_MIN + pad)) : 0);
+      const total = sum(room), take = Math.min(short, total);
+      width.forEach((_, i) => { width[i] -= total ? take * room[i] / total : 0; });
+      short -= take;
+    }
+    // Still too wide: take the rest from the wide columns, so narrow ones (numbers, short labels) stay intact
+    if (short > 0) {
+      const room = width.map((w) => Math.max(0, w - Math.max(100, w * 0.6)));
+      const total = sum(room), take = Math.min(short, total);
+      width.forEach((_, i) => { width[i] -= total ? take * room[i] / total : 0; });
+      short -= take;
+    }
+    if (short < 0) {
+      const deficit = natural.map((n, i) => Math.max(0, n - width[i]));
+      const total = sum(deficit);
+      width.forEach((_, i) => { width[i] += total ? -short * deficit[i] / total : 0; });
+    }
+    const all = sum(width);
+    const cg = document.createElement('colgroup');
+    cg.className = 'fit-cols';
+    width.forEach((w) => { const col = document.createElement('col'); col.style.width = (100 * w / all).toFixed(2) + '%'; cg.appendChild(col); });
+    t.prepend(cg);
+    t.classList.add('fit');
+  }
+  function fitTables() { preview.querySelectorAll('table').forEach((t) => fitTable(t)); }
+  let fitWidth = 0, fitTimer;
+  new ResizeObserver(() => {
+    if (Math.abs(preview.clientWidth - fitWidth) < 2) return;
+    fitWidth = preview.clientWidth;
+    clearTimeout(fitTimer); fitTimer = setTimeout(fitTables, 120);
+  }).observe(preview);
 
   let typingTimer = null;
   function renderAll(md, immediate = false) {
@@ -603,7 +698,8 @@ document.getElementById('devYear').textContent = new Date().getFullYear();
   }
   editor.addEventListener('input', updateStats);
 
-  function loadText(text, name, handle = null) {
+  function loadText(text, name, handle = null, base = null) {
+    docBase = base;
     fileName.textContent = name;
     editor.value = text;
     pdfBtn.disabled = false;
@@ -697,7 +793,7 @@ document.getElementById('devYear').textContent = new Date().getFullYear();
   if (srcUrl) {
     const name = decodeURIComponent(srcUrl.split(/[?#]/)[0].split('/').pop() || 'document.md');
     fetch(srcUrl).then(r => { if (!r.ok) throw new Error(r.status); return r.text(); })
-      .then(t => loadText(t, name))
+      .then(t => loadText(t, name, null, srcUrl))
       .catch(() => {
         editor.value = `# Cannot read file\n\nCould not load \`${srcUrl}\`.\n\nFor local files, open **chrome://extensions** (or **edge://extensions**), choose this extension's **Details**, and turn on **Allow access to file URLs**.`;
         renderAll(editor.value, true);
@@ -836,7 +932,7 @@ document.getElementById('devYear').textContent = new Date().getFullYear();
   document.getElementById('helpBtn').addEventListener('click', () => {
     if (!window.WELCOME_MD) return;
     if (dirty && !confirm('Open the Help guide? Your unsaved edits will be replaced.')) return;
-    loadText(window.WELCOME_MD, 'Help.md');
+    loadText(window.HELP_MD || window.WELCOME_MD, 'Help.md');
   });
   document.getElementById('clearBtn').addEventListener('click', () => {
     if (editor.value && !confirm('Clear all contents? This cannot be undone.')) return;
@@ -884,6 +980,51 @@ document.getElementById('devYear').textContent = new Date().getFullYear();
   previewEl.addEventListener('scroll', () => toTop.classList.toggle('show', previewEl.scrollTop > 300), { passive: true });
   toTop.addEventListener('click', () => previewEl.scrollTo({ top: 0, behavior: 'smooth' }));
 
+  // Table-of-contents links (#heading) jump to the heading, using GitHub's heading anchors
+  const slug = (s) => s.trim().toLowerCase().replace(/[^\p{L}\p{N}\s_-]/gu, '').replace(/\s/g, '-');
+  previewEl.addEventListener('click', (e) => {
+    const a = e.target.closest('a[href^="#"]');
+    if (!a || a.closest('.cz')) return;
+    const id = decodeURIComponent(a.getAttribute('href').slice(1)).toLowerCase();
+    if (!id) return;
+    const seen = {};
+    const target = [...previewEl.querySelectorAll('h1, h2, h3, h4, h5, h6')].find((h) => {
+      let s = slug(h.textContent);
+      const n = seen[s] = (seen[s] ?? -1) + 1;
+      if (n) s += '-' + n;
+      return s === id || s.replace(/^-+/, '') === id;
+    }) || previewEl.querySelector(`[id="${CSS.escape(id)}"], a[name="${CSS.escape(id)}"]`);
+    if (!target) return;
+    e.preventDefault();
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+
+  // Open a document from a web address; GitHub and Gist page links become their raw file links
+  const rawUrl = (input) => {
+    const url = new URL(input.trim());
+    let m;
+    if (url.hostname === 'github.com' && (m = url.pathname.match(/^\/([^/]+)\/([^/]+)\/(?:blob|raw)\/(.+)$/))) return `https://raw.githubusercontent.com/${m[1]}/${m[2]}/${m[3]}`;
+    if (url.hostname === 'gist.github.com' && (m = url.pathname.match(/^\/([^/]+)\/([0-9a-f]+)\/?$/))) return `https://gist.githubusercontent.com/${m[1]}/${m[2]}/raw`;
+    return url.href;
+  };
+  async function openUrl(input) {
+    let url;
+    try { url = rawUrl(input); if (!/^https?:$/.test(new URL(url).protocol)) throw new Error(); }
+    catch { showNotice('Enter a full web address, starting with https://'); return; }
+    if (dirty && !confirm('Open this document? Your unsaved edits will be replaced.')) return;
+    let res;
+    try { res = await fetch(url); }
+    catch { showNotice('Could not open that address. The site may not let other pages read its files. Try its raw file link, or download the file and use Open.'); return; }
+    if (!res.ok) { showNotice(`Could not open that address. The site answered ${res.status}.`); return; }
+    let name = decodeURIComponent(new URL(url).pathname.split('/').filter(Boolean).pop() || 'document');
+    if (name === 'raw') name = 'gist';
+    loadText(await res.text(), /\.(md|markdown|mdown|mkd|txt)$/i.test(name) ? name : name + '.md', null, url);
+  }
+  document.getElementById('urlBtn').addEventListener('click', () => {
+    const u = prompt('Open a Markdown document from a web address.\nGitHub and Gist page links work too.', 'https://');
+    if (u && u.trim() && u.trim() !== 'https://') openUrl(u);
+  });
+
   // Draggable Divider
   let isDragging = false;
   resizer.addEventListener('mousedown', (e) => {
@@ -921,7 +1062,113 @@ document.getElementById('devYear').textContent = new Date().getFullYear();
   if (/```d2/.test(sample)) setTimeout(() => { d2Lock = d2Lock.then(() => loadLib('lib/d2.js')).then(() => { d2Engine = d2Engine || new window.D2(); return d2Engine.compile('a -> b'); }).catch(() => {}); }, 1500);
   let boot = sample, recovered = false;
   try { const d = JSON.parse(localStorage.getItem('mdDraft') || 'null'); if (d && d.text && d.text !== sample) { boot = d.text; recovered = true; fileName.textContent = d.name || 'Recovered draft'; } } catch {}
-  if (!srcUrl) editor.value = boot;
+  // Hosted preview (VS Code): the host sends the document; the welcome text, drafts and file buttons are not used
+  const host = window.mdHost;
+  if (host) {
+    boot = ''; recovered = false;
+    setCollapsed(true);
+    let first = true;
+    host.connect({
+      update(text, base, name) {
+        docBase = base || null;
+        editor.value = text;
+        fileName.textContent = name || '';
+        setDirty(false);
+        renderAll(text, first);
+        first = false;
+      }
+    });
+  }
+  if (!srcUrl && !host) editor.value = boot;
   original = srcUrl ? null : boot;
   setPvUI(pvTheme);
-  if (!srcUrl) { renderAll(boot, true); if (recovered) { setDirty(true); original = sample; pdfBtn.disabled = false; } }
+  if (!srcUrl && !host) { renderAll(boot, true); if (recovered) { setDirty(true); original = sample; pdfBtn.disabled = false; } }
+
+  // Bottom-of-page notice with optional action buttons
+  function showNotice(text, actions = [], onDismiss) {
+    document.getElementById('appNotice')?.remove();
+    const box = document.createElement('div');
+    box.id = 'appNotice';
+    box.setAttribute('role', 'status');
+    const msg = document.createElement('span');
+    msg.textContent = text;
+    box.append(msg);
+    [...actions, { label: 'Dismiss', run: onDismiss }].forEach(({ label, run }) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = label;
+      b.addEventListener('click', () => { box.remove(); if (run) run(); });
+      box.append(b);
+    });
+    document.body.append(box);
+  }
+
+  // Files arriving by drag and drop or from the operating system's "Open with"
+  async function openLocalFile(file, handle = null) {
+    if (!/\.(md|markdown|mdown|mkd|txt)$/i.test(file.name)) { showNotice(`${file.name} is not a Markdown file.`); return; }
+    if (dirty && !confirm(`Replace your unsaved edits with ${file.name}?`)) return;
+    try { loadText(await file.text(), file.name, handle); }
+    catch { showNotice(`Could not read ${file.name}.`); }
+  }
+  const dragHasFiles = e => [...(e.dataTransfer?.types || [])].includes('Files');
+  const setDropTarget = on => document.body.classList.toggle('file-drop', on);
+  // Capture phase, so the editor doesn't paste the dropped file's text at the cursor
+  window.addEventListener('dragover', (e) => {
+    if (!dragHasFiles(e)) return;
+    e.preventDefault(); e.stopPropagation();
+    e.dataTransfer.dropEffect = 'copy';
+    setDropTarget(true);
+  }, true);
+  window.addEventListener('dragleave', (e) => { if (!e.relatedTarget) setDropTarget(false); }, true);
+  window.addEventListener('drop', async (e) => {
+    if (!dragHasFiles(e)) return;
+    e.preventDefault(); e.stopPropagation();
+    setDropTarget(false);
+    const item = [...e.dataTransfer.items].find(i => i.kind === 'file');
+    if (!item) return;
+    // Both must be requested before the first await, while the drop data is still readable
+    const file = item.getAsFile();
+    const pending = item.getAsFileSystemHandle?.();
+    let handle = null;
+    try { handle = await pending; } catch {}
+    if (handle?.kind === 'directory') { showNotice('Drop a Markdown file, not a folder.'); return; }
+    if (file) openLocalFile(file, handle);
+  }, true);
+  if ('launchQueue' in window) window.launchQueue.setConsumer(async (params) => {
+    const handle = params.files?.[0];
+    if (!handle) return;
+    try { openLocalFile(await handle.getFile(), handle); }
+    catch { showNotice(`The browser did not allow access to ${handle.name}. Try the folder button instead.`); }
+  });
+
+  // Extension: explain the browser's file-access switch when it is off
+  if (window.chrome?.extension?.isAllowedFileSchemeAccess) {
+    chrome.extension.isAllowedFileSchemeAccess((allowed) => {
+      let hidden = false;
+      try { hidden = localStorage.getItem('mdFileTip') === '0'; } catch {}
+      if (allowed || hidden) return;
+      showNotice('To open local files directly, allow file access for this extension.', [{
+        label: 'Show me how',
+        run: () => chrome.tabs.create({ url: chrome.runtime.getURL('setup.html') })
+      }], () => { try { localStorage.setItem('mdFileTip', '0'); } catch {} });
+    });
+  }
+
+  // Website: installable app with offline support
+  if (location.protocol.startsWith('http') && window.isSecureContext && 'serviceWorker' in navigator) {
+    const cacheApp = () => navigator.serviceWorker.ready.then(r => r.active?.postMessage('cache-app'));
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+    if (matchMedia('(display-mode: standalone)').matches) cacheApp();
+    window.addEventListener('appinstalled', cacheApp);
+    const installBtn = document.getElementById('installBtn');
+    let installPrompt = null;
+    window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installPrompt = e; installBtn.hidden = false; });
+    window.addEventListener('appinstalled', () => { installBtn.hidden = true; installPrompt = null; });
+    installBtn.addEventListener('click', async () => {
+      if (!installPrompt) return;
+      installPrompt.prompt();
+      await installPrompt.userChoice;
+      installPrompt = null;
+      installBtn.hidden = true;
+    });
+  }
