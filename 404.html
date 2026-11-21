@@ -173,6 +173,13 @@
   .cz-dot { width:10px; height:10px; padding:0; border-radius:50%; border:0; background:rgba(128,128,128,.45); cursor:pointer; }
   .cz-dot.on { background:#8b3dff; width:26px; border-radius:6px; }
   @media print { .cz-btn, .cz-dots { display:none; } .cz-track { display:block; overflow:visible; } }
+  /* Website welcome page: banner as the first slide; the other slides' images fill the same height */
+  .cz { container-type:inline-size; }
+  .cz-slide.cz-hero { background-color:transparent; }
+  .cz-badge { transform:rotate(-10deg) scale(.75) !important; }
+  @container (max-width:600px) { .cz-badge { display:none; } }
+  .cz:has(.cz-hero) figure.cz-slide { display:flex; flex-direction:column; }
+  #preview .cz:has(.cz-hero) .cz-slide img { flex:1 1 auto; height:0; min-height:220px; max-height:none; aspect-ratio:auto; }
   #preview table { table-layout:auto; max-width:100%; }
   #preview pre { max-width:100%; box-sizing:border-box; overflow-wrap:normal; }
   pre { background:var(--code); padding:14px 16px; border-radius:12px; overflow-x:auto; border:1px solid var(--border); }

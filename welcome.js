@@ -457,3 +457,24 @@ Click to format — no syntax to memorise.
 </div>
 
 `.replace(/§/g, '`');
+
+// Website only (the extension keeps the layout above): the banner becomes the carousel's first slide,
+// and the comparison table moves up to sit right below the carousel.
+if (location.protocol !== 'chrome-extension:') {
+  let md = window.WELCOME_MD;
+  const carouselAt = md.indexOf('\n\n<div class="cz">');
+  const hero = md.slice(0, carouselAt)
+    .replace('<div style="background:', '<div class="cz-slide cz-hero" style="background:')
+    .replace('border-radius:28px;position:relative;padding:64px 28px 56px', 'position:relative;padding:56px 64px 44px')
+    .replace(';box-shadow:0 20px 60px rgba(139,61,255,.35)', '')
+    .replace('<div style="position:absolute;top:-16px;left:-16px;', '<div class="cz-badge" style="position:absolute;top:12px;left:12px;transform-origin:top left;');
+  md = md.slice(carouselAt).trimStart()
+    .replace('<div class="cz-track">\n', '<div class="cz-track">\n' + hero + '\n')
+    .replace('<div class="cz-dots">', '<div class="cz-dots"><button class="cz-dot" aria-label="Slide"></button>');
+  const switchAt = md.indexOf('---\n\n## ⚖️ Why people switch');
+  const ctaAt = md.indexOf('<div style="background:linear-gradient(135deg,#19c3ff', switchAt);
+  const compare = md.slice(switchAt + 5, ctaAt).trim();
+  md = md.slice(0, switchAt) + md.slice(ctaAt);
+  const statsAt = md.indexOf('\n\n<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px');
+  window.WELCOME_MD = md.slice(0, statsAt) + '\n\n' + compare + md.slice(statsAt);
+}
