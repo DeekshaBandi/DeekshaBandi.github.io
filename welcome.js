@@ -459,7 +459,7 @@ Click to format — no syntax to memorise.
 `.replace(/§/g, '`');
 
 // Website only (the extension keeps the layout above): the banner becomes the carousel's first slide,
-// and the comparison table moves up to sit right below the carousel.
+// related screenshots share a slide, and the comparison table moves up to sit right below the carousel.
 if (location.protocol !== 'chrome-extension:') {
   let md = window.WELCOME_MD;
   const carouselAt = md.indexOf('\n\n<div class="cz">');
@@ -468,9 +468,23 @@ if (location.protocol !== 'chrome-extension:') {
     .replace('border-radius:28px;position:relative;padding:64px 28px 56px', 'position:relative;padding:56px 64px 44px')
     .replace(';box-shadow:0 20px 60px rgba(139,61,255,.35)', '')
     .replace('<div style="position:absolute;top:-16px;left:-16px;', '<div class="cz-badge" style="position:absolute;top:12px;left:12px;transform-origin:top left;');
-  md = md.slice(carouselAt).trimStart()
+  const lines = md.slice(carouselAt).trimStart().split('\n');
+  const at = (img) => lines.findIndex((l) => l.startsWith(`<figure class="cz-slide"><img src="help/${img}.png"`));
+  // Pair related screenshots in one slide each
+  const pair = (a, b, caption) => {
+    const img = (i) => lines[i].match(/<img [^>]*>/)[0];
+    const i = at(a), j = at(b);
+    lines[i] = `<figure class="cz-slide"><div class="cz-pair">${img(i)}${img(j)}</div><figcaption>${caption}</figcaption></figure>`;
+    lines.splice(j, 1);
+  };
+  pair('overview', 'collapsed', '<b>Live split view and focus mode</b> — Type on the left and see the result instantly, or hide the source pane for a full-width preview.');
+  pair('toolbar', 'theme-menu', '<b>Toolbar and theme switcher</b> — Every formatting action is one click away, and all 14 themes sit in one menu.');
+  const c = at('diagram-colors'), d = at('all-diagrams');
+  [lines[c], lines[d]] = [lines[d], lines[c]];
+  const slides = lines.filter((l) => l.startsWith('<figure class="cz-slide">')).length + 1;
+  md = lines.join('\n')
     .replace('<div class="cz-track">\n', '<div class="cz-track">\n' + hero + '\n')
-    .replace('<div class="cz-dots">', '<div class="cz-dots"><button class="cz-dot" aria-label="Slide"></button>');
+    .replace(/<div class="cz-dots">.*?<\/div>/, `<div class="cz-dots">${'<button class="cz-dot" aria-label="Slide"></button>'.repeat(slides)}</div>`);
   const switchAt = md.indexOf('---\n\n## ⚖️ Why people switch');
   const ctaAt = md.indexOf('<div style="background:linear-gradient(135deg,#19c3ff', switchAt);
   const compare = md.slice(switchAt + 5, ctaAt).trim();

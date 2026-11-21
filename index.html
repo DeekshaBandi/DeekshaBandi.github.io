@@ -180,6 +180,9 @@
   @container (max-width:600px) { .cz-badge { display:none; } }
   .cz:has(.cz-hero) figure.cz-slide { display:flex; flex-direction:column; }
   #preview .cz:has(.cz-hero) .cz-slide img { flex:1 1 auto; height:0; min-height:220px; max-height:none; aspect-ratio:auto; }
+  .cz-pair { flex:1 1 auto; min-height:220px; display:grid; grid-template-rows:minmax(0,1fr) minmax(0,1fr); gap:6px; padding:6px; background:#f4f6fa; }
+  #preview .cz:has(.cz-hero) .cz-pair img { height:100%; min-height:0; }
+  @container (min-width:1000px) { .cz-pair { grid-template-rows:minmax(0,1fr); grid-template-columns:1fr 1fr; } }
   #preview table { table-layout:auto; max-width:100%; }
   #preview pre { max-width:100%; box-sizing:border-box; overflow-wrap:normal; }
   pre { background:var(--code); padding:14px 16px; border-radius:12px; overflow-x:auto; border:1px solid var(--border); }
